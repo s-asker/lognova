@@ -1,10 +1,11 @@
 import React from 'react';
-import { LayoutDashboard, Box, Server, FileText, Settings, Search, Bell, Activity } from 'lucide-react';
+import { LayoutDashboard, Box, Server, FileText, Settings, Search, Bell, Activity, LogOut } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentView: string;
   onNavigate: (view: any) => void;
+  onLogout?: () => void;
 }
 
 const NavItem: React.FC<{
@@ -26,7 +27,7 @@ const NavItem: React.FC<{
   </button>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate, onLogout }) => {
   return (
     <div className="flex h-screen bg-slate-900 text-slate-200 overflow-hidden">
       {/* Sidebar */}
@@ -75,7 +76,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
         </div>
 
         <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-xs font-bold text-white">
               A
             </div>
@@ -84,6 +85,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
               <div className="text-slate-500 text-xs">admin@lognova.local</div>
             </div>
           </div>
+          {onLogout && (
+             <button 
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 text-xs text-slate-400 hover:text-white py-2 rounded-md hover:bg-slate-800 transition-colors"
+             >
+                <LogOut size={14} />
+                Sign Out
+             </button>
+          )}
         </div>
       </aside>
 
