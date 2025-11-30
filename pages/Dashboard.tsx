@@ -27,10 +27,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard 
-          title="Total Events (24h)" 
-          value={stats.totalLogs.toLocaleString()} 
+          title="Log Storage" 
+          value={stats.logDiskUsage} 
           icon={Activity} 
-          trend="12%" 
+          trend="Stable" 
           trendUp={true} 
         />
         <StatsCard 
@@ -42,12 +42,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         />
         <StatsCard 
           title="Active Containers" 
-          value="8" 
+          value={stats.activeContainers?.toString() || "0"} 
           icon={Box} 
         />
         <StatsCard 
           title="System Services" 
-          value="42" 
+          value={stats.activeServices?.toString() || "0"} 
           icon={Server} 
         />
       </div>

@@ -36,9 +36,11 @@ export interface DockerContainer {
 }
 
 export interface LogStats {
-  totalLogs: number;
+  logDiskUsage: string;
   errorCount: number;
   warnCount: number;
+  activeContainers: number;
+  activeServices: number;
   logsOverTime: { time: string; count: number }[];
 }
 

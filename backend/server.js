@@ -85,23 +85,85 @@ const applyFilters = (logs, query, level, start, end) => {
 
 // 1. Stats
 app.get('/api/stats', async (req, res) => {
-    // Generate dummy chart data for the dashboard since we don't have a persistent time-series DB yet.
-    // In a real production scenario, you would aggregate this from your logs database (e.g., Elasticsearch, Loki).
-    const now = new Date();
-    const logsOverTime = Array.from({ length: 12 }).map((_, i) => {
-        const d = new Date(now.getTime() - (11 - i) * 5 * 60000); // Past hour, 5 min intervals
-        return {
-            time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            count: Math.floor(Math.random() * 300) + 50 // Random value between 50 and 350
-        };
-    });
+    try {
+        // Parallelize the data fetching for better performance
+        const [
+            activeContainers, 
+            activeServices, 
+            logDiskUsage, 
+            errorCount, 
+            warnCount
+        ] = await Promise.all([
+            // 1. Active Containers
+            docker.listContainers().then(c => c.length).catch(() => 0),
+            
+            // 2. Active System Services
+            new Promise((resolve) => {
+                exec('systemctl list-units --type=service --state=active --no-legend | wc -l', (err, stdout) => {
+                    resolve(err ? 0 : parseInt(stdout.trim(), 10) || 0);
+                });
+            }),
 
-    res.json({
-        totalLogs: 12540 + Math.floor(Math.random() * 100),
-        errorCount: 42,
-        warnCount: 156,
-        logsOverTime: logsOverTime
-    });
+            // 3. Log Disk Usage (Instant)
+            new Promise((resolve) => {
+                exec('journalctl --disk-usage', (err, stdout) => {
+                    if (err) return resolve('0 B');
+                    // Output format: "Archived and active journals take up 3.2G in the file system."
+                    // We extract the size part.
+                    const match = stdout.match(/take up ([\d.]+[KMGTP]?)/);
+                    resolve(match ? match[1] : 'Unknown');
+                });
+            }),
+
+            // 4. Error Count (Last 24h, Priority 3/Error)
+            new Promise((resolve) => {
+                exec('journalctl --since "24 hours ago" -p 3 --no-pager | wc -l', (err, stdout) => {
+                    resolve(err ? 0 : parseInt(stdout.trim(), 10) || 0);
+                });
+            }),
+
+            // 5. Warn Count (Last 24h, Priority 4/Warning)
+            new Promise((resolve) => {
+                exec('journalctl --since "24 hours ago" -p 4 --no-pager | wc -l', (err, stdout) => {
+                    resolve(err ? 0 : parseInt(stdout.trim(), 10) || 0);
+                });
+            })
+        ]);
+
+        // Generate chart data (Simulated distribution based on real volume would be complex, 
+        // so we keep the visualization simulated but consistent with the vibe of activity)
+        const now = new Date();
+        const logsOverTime = Array.from({ length: 12 }).map((_, i) => {
+            const d = new Date(now.getTime() - (11 - i) * 5 * 60000); // Past hour
+            // Randomize a bit but scale relative to "recent" activity if we had it.
+            // For now, random is fine for the visual shape.
+            return {
+                time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                count: Math.floor(Math.random() * 50) + 10
+            };
+        });
+
+        res.json({
+            logDiskUsage,
+            errorCount,
+            warnCount,
+            activeContainers,
+            activeServices,
+            logsOverTime
+        });
+
+    } catch (error) {
+        console.error('Stats error:', error);
+        // Return fallback stats if something fails (e.g. Docker not running)
+        res.json({
+            logDiskUsage: 'Unknown',
+            errorCount: 0,
+            warnCount: 0,
+            activeContainers: 0,
+            activeServices: 0,
+            logsOverTime: logsOverTime
+        });
+    }
 });
 
 // 2. Docker Containers

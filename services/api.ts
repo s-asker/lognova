@@ -22,9 +22,11 @@ const generateMockLogs = (count: number, source: string): LogEntry[] => {
 };
 
 const mockStats: LogStats = {
-  totalLogs: 14520,
+  logDiskUsage: '1.2 GB',
   errorCount: 234,
   warnCount: 890,
+  activeContainers: 8,
+  activeServices: 15,
   logsOverTime: [
     { time: '10:00', count: 120 }, { time: '10:05', count: 150 },
     { time: '10:10', count: 180 }, { time: '10:15', count: 140 },
