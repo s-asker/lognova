@@ -383,9 +383,9 @@ For issues and questions:
 ## Screenshots
 
 <p align="center">
-  <img src="Screenshot-from-2025-11-30-12-48-43.jpg" alt="LogNova Dashboard" style="width:90%;max-width:900px;margin:20px auto;">
+  <img src="ss1.png" alt="LogNova Dashboard" style="width:90%;max-width:900px;margin:20px auto;">
 </p>
 
 <p align="center">
-  <img src="Screenshot-from-2025-11-30-12-49-28.jpg" alt="LogNova System Services" style="width:90%;max-width:900px;margin:20px auto;">
+  <img src="ss2.png" alt="LogNova System Services" style="width:90%;max-width:900px;margin:20px auto;">
 </p>
