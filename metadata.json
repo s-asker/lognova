@@ -1,0 +1,5 @@
+{
+  "name": "Copy of LogNova",
+  "description": "A high-performance, self-hosted log management dashboard with a Laravel Nova-inspired dark UI. Monitor Docker containers, Systemd services, and Nginx logs in real-time.",
+  "requestFramePermissions": []
+}
