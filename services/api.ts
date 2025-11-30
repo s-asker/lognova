@@ -1,18 +1,24 @@
 import { ApiResponse, DockerContainer, LogEntry, LogLevel, LogSourceType, LogStats, SystemService } from '../types';
 
 // Configuration
-const API_BASE_URL = 'http://102.218.215.254:3001/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 const USE_MOCK_DATA = false; // Set to FALSE to connect to the actual backend provided in `backend/server.js`
 
 // Mock Data Generators for UI Demo
+// Generates logs spanning the last 24 hours
 const generateMockLogs = (count: number, source: string): LogEntry[] => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: `log-${Date.now()}-${i}`,
-    timestamp: new Date(Date.now() - i * 60000).toISOString(),
-    level: i % 10 === 0 ? LogLevel.ERROR : i % 5 === 0 ? LogLevel.WARN : LogLevel.INFO,
-    message: `[${source}] processed request ID ${Math.random().toString(36).substring(7)} with latency ${Math.floor(Math.random() * 200)}ms`,
-    source: source
-  }));
+  const now = Date.now();
+  return Array.from({ length: count }).map((_, i) => {
+    // Spread logs over 24 hours (86400000 ms)
+    const timeOffset = Math.floor((i / count) * 86400000); 
+    return {
+      id: `log-${now}-${i}`,
+      timestamp: new Date(now - timeOffset).toISOString(),
+      level: i % 15 === 0 ? LogLevel.ERROR : i % 7 === 0 ? LogLevel.WARN : LogLevel.INFO,
+      message: `[${source}] processed request ID ${Math.random().toString(36).substring(7)} with latency ${Math.floor(Math.random() * 200)}ms`,
+      source: source
+    };
+  });
 };
 
 const mockStats: LogStats = {
@@ -76,12 +82,17 @@ export const ApiService = {
       endDate?: string
   ): Promise<LogEntry[]> {
     if (USE_MOCK_DATA) {
-      await new Promise(r => setTimeout(r, 300)); // Latency simulation
+      await new Promise(r => setTimeout(r, 400)); // Latency simulation
       
-      let logs = generateMockLogs(100, id || (type === LogSourceType.FILE ? 'nginx' : 'system'));
+      // Generate a larger static set for better filtering demo (500 logs over 24h)
+      let logs = generateMockLogs(500, id || (type === LogSourceType.FILE ? 'nginx' : 'system'));
       
       if (query) {
-        logs = logs.filter(l => l.message.toLowerCase().includes(query.toLowerCase()));
+        const lowerQuery = query.toLowerCase();
+        logs = logs.filter(l => 
+          l.message.toLowerCase().includes(lowerQuery) || 
+          l.source.toLowerCase().includes(lowerQuery)
+        );
       }
       
       if (level) {
@@ -98,13 +109,20 @@ export const ApiService = {
           logs = logs.filter(l => new Date(l.timestamp).getTime() <= end);
       }
 
+      // Sort logs by timestamp descending (newest first) for the UI logic usually
+      // but the UI renders top-down, so usually we want oldest first or newest last depending on scroll.
+      // Let's return them such that the newest is at the end of the array (log tail style).
+      logs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
       return logs;
     }
 
     const params = new URLSearchParams();
     if (id) params.append('id', id);
     if (query) params.append('q', query);
-    // Real implementation would append level, startDate, endDate to query params here
+    if (level) params.append('level', level);
+    if (startDate) params.append('start', startDate);
+    if (endDate) params.append('end', endDate);
 
     let endpoint = '';
     switch (type) {

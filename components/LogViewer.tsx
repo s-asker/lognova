@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LogEntry, LogLevel, LogSourceType } from '../types';
 import { ApiService } from '../services/api';
-import { Search, RefreshCw, Terminal, Maximize2, Minimize2, Calendar, Filter } from 'lucide-react';
+import { Search, RefreshCw, Terminal, Maximize2, Minimize2, Calendar, Filter, X, Check } from 'lucide-react';
 
 interface LogViewerProps {
   type: LogSourceType;
@@ -14,10 +14,17 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Filtering States
-  const [searchQuery, setSearchQuery] = useState('');
-  const [logLevel, setLogLevel] = useState<LogLevel | 'ALL'>('ALL');
-  const [startDate, setStartDate] = useState('');
+  // Input State (User typing/selecting)
+  const [inputQuery, setInputQuery] = useState('');
+  const [inputLevel, setInputLevel] = useState<LogLevel | 'ALL'>('ALL');
+  const [inputStartDate, setInputStartDate] = useState('');
+
+  // Active Filter State (Applied to API calls)
+  const [activeFilters, setActiveFilters] = useState({
+    query: '',
+    level: 'ALL' as LogLevel | 'ALL',
+    startDate: ''
+  });
   
   const [autoScroll, setAutoScroll] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -25,13 +32,13 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      // Pass filters to API
+      // Use activeFilters for fetching
       const data = await ApiService.getLogs(
           type, 
           sourceId || undefined, 
-          searchQuery, 
-          logLevel === 'ALL' ? undefined : logLevel,
-          startDate || undefined
+          activeFilters.query, 
+          activeFilters.level === 'ALL' ? undefined : activeFilters.level,
+          activeFilters.startDate || undefined
       );
       setLogs(data);
     } catch (error) {
@@ -41,19 +48,53 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
     }
   };
 
+  // Re-fetch when source changes, applied filters change, or auto-scroll is on (polling)
   useEffect(() => {
     fetchLogs();
-    const interval = setInterval(() => {
-        if(autoScroll) fetchLogs(); 
-    }, 5000);
+    
+    // Only set up interval if we are in "Live" mode
+    let interval: NodeJS.Timeout;
+    if (autoScroll) {
+        interval = setInterval(() => {
+            fetchLogs(); 
+        }, 5000);
+    }
     return () => clearInterval(interval);
-  }, [type, sourceId, searchQuery, logLevel, startDate, autoScroll]);
+  }, [type, sourceId, activeFilters, autoScroll]);
 
+  // Scroll to bottom when logs update, if autoScroll is enabled
   useEffect(() => {
     if (autoScroll && logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs, autoScroll]);
+
+  // Handle Apply Filters
+  const applyFilters = () => {
+    setActiveFilters({
+        query: inputQuery,
+        level: inputLevel,
+        startDate: inputStartDate
+    });
+    // If user is searching/filtering specific history, we often want to turn off auto-scroll to read results
+    if (inputQuery || inputStartDate) {
+        setAutoScroll(false);
+    }
+  };
+
+  // Handle Clear Filters
+  const clearFilters = () => {
+      setInputQuery('');
+      setInputLevel('ALL');
+      setInputStartDate('');
+      
+      setActiveFilters({
+          query: '',
+          level: 'ALL',
+          startDate: ''
+      });
+      setAutoScroll(true); // Re-enable live mode on clear
+  };
 
   const getLevelColor = (level: LogLevel) => {
     switch (level) {
@@ -104,8 +145,9 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
             <input
               type="text"
               placeholder="Search in logs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={inputQuery}
+              onChange={(e) => setInputQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded px-3 pl-9 py-2 focus:border-primary-500 focus:outline-none"
             />
           </div>
@@ -116,8 +158,8 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
                 <Filter size={14} />
              </div>
              <select 
-                value={logLevel}
-                onChange={(e) => setLogLevel(e.target.value as LogLevel | 'ALL')}
+                value={inputLevel}
+                onChange={(e) => setInputLevel(e.target.value as LogLevel | 'ALL')}
                 className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded pl-9 pr-8 py-2 focus:border-primary-500 focus:outline-none appearance-none cursor-pointer hover:bg-slate-800"
              >
                 <option value="ALL">All Levels</option>
@@ -134,10 +176,26 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
              </div>
              <input 
                 type="datetime-local" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                value={inputStartDate}
+                onChange={(e) => setInputStartDate(e.target.value)}
                 className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded pl-9 pr-3 py-1.5 focus:border-primary-500 focus:outline-none [color-scheme:dark]"
              />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 border-l border-slate-700 pl-3 ml-2">
+            <button 
+                onClick={applyFilters}
+                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-medium px-3 py-2 rounded transition-colors"
+            >
+                <Check size={14} /> Apply
+            </button>
+             <button 
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs font-medium px-3 py-2 rounded transition-colors"
+            >
+                <X size={14} /> Clear
+            </button>
           </div>
 
           {/* AI Action */}
@@ -152,7 +210,7 @@ export const LogViewer: React.FC<LogViewerProps> = ({ type, sourceId, isFullScre
           <div className="flex flex-col items-center justify-center h-full text-slate-500">
             <Terminal size={48} className="mb-4 opacity-30" />
             <p className="text-slate-400 font-medium">No logs found</p>
-            <p className="text-xs mt-1">Try adjusting your filters</p>
+            <p className="text-xs mt-1">Try adjusting your filters or clearing them</p>
           </div>
         ) : (
           <div className="space-y-0.5">
