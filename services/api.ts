@@ -3,6 +3,7 @@ import { ApiResponse, DockerContainer, LogEntry, LogLevel, LogSourceType, LogSta
 // Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 const USE_MOCK_DATA = false; // Set to FALSE to connect to the actual backend provided in `backend/server.js`
+const TOKEN_KEY = 'lognova_token';
 
 // Mock Data Generators for UI Demo
 // Generates logs spanning the last 24 hours
@@ -51,6 +52,96 @@ const mockServices: SystemService[] = [
   { id: 'ufw', name: 'ufw.service', status: 'inactive', description: 'Uncomplicated firewall' },
 ];
 
+// Helper to add auth header
+const fetchWithAuth = (url: string, options: RequestInit = {}) => {
+  const token = AuthService.getToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': token ? `Bearer ${token}` : ''
+    }
+  });
+};
+
+// Auth Service
+export const AuthService = {
+  async login(username: string, password: string): Promise<{ token: string; user: { username: string; role: string } }> {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Login failed');
+    }
+
+    const data = await res.json();
+    localStorage.setItem(TOKEN_KEY, data.token);
+    return data;
+  },
+
+  logout() {
+    localStorage.removeItem(TOKEN_KEY);
+  },
+
+  getToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to change password');
+    }
+  }
+};
+
+// User Management Service (Admin only)
+export const UserService = {
+  async listUsers(): Promise<Array<{ username: string; role: string; createdAt: string }>> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/users`);
+    if (!res.ok) throw new Error('Failed to fetch users');
+    return await res.json();
+  },
+
+  async createUser(username: string, password: string, role: string = 'viewer'): Promise<void> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, role })
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to create user');
+    }
+  },
+
+  async deleteUser(username: string): Promise<void> {
+    const res = await fetchWithAuth(`${API_BASE_URL}/users/${username}`, {
+      method: 'DELETE'
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to delete user');
+    }
+  }
+};
+
 // Service Implementation
 export const ApiService = {
   async getStats(): Promise<LogStats> {
@@ -58,20 +149,20 @@ export const ApiService = {
         // Return a copy to avoid mutation issues
         return JSON.parse(JSON.stringify(mockStats)); 
     }
-    const res = await fetch(`${API_BASE_URL}/stats`);
+    const res = await fetchWithAuth(`${API_BASE_URL}/stats`);
     const data = await res.json();
     return data;
   },
 
   async getDockerContainers(): Promise<DockerContainer[]> {
     if (USE_MOCK_DATA) return mockContainers;
-    const res = await fetch(`${API_BASE_URL}/docker/containers`);
+    const res = await fetchWithAuth(`${API_BASE_URL}/docker/containers`);
     return await res.json();
   },
 
   async getSystemServices(): Promise<SystemService[]> {
     if (USE_MOCK_DATA) return mockServices;
-    const res = await fetch(`${API_BASE_URL}/system/services`);
+    const res = await fetchWithAuth(`${API_BASE_URL}/system/services`);
     return await res.json();
   },
 
@@ -133,7 +224,7 @@ export const ApiService = {
       case LogSourceType.FILE: endpoint = '/files/logs'; break;
     }
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}?${params.toString()}`);
+    const res = await fetchWithAuth(`${API_BASE_URL}${endpoint}?${params.toString()}`);
     return await res.json();
   }
 };
