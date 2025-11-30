@@ -5,6 +5,9 @@ import { spawn, exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 /**
  * LogNova Backend Server
@@ -13,13 +16,13 @@ import { fileURLToPath } from 'url';
  * 1. Ensure Node.js is installed (v18+).
  * 2. Go to backend directory: cd backend
  * 3. Create package.json if missing: npm init -y
- * 4. Install dependencies: npm install express cors dockerode
+ * 4. Install dependencies: npm install express cors dockerode dotenv
  * 5. Ensure "type": "module" is in package.json (or inherit from root)
  * 6. Run: node server.js
  */
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // Initialize Docker Client (assumes /var/run/docker.sock)
 // Note: Ensure the user running this process has permission to access the socket.

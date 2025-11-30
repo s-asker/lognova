@@ -1,7 +1,7 @@
 import { ApiResponse, DockerContainer, LogEntry, LogLevel, LogSourceType, LogStats, SystemService } from '../types';
 
 // Configuration
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 const USE_MOCK_DATA = false; // Set to FALSE to connect to the actual backend provided in `backend/server.js`
 
 // Mock Data Generators for UI Demo
