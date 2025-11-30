@@ -1,5 +1,9 @@
 # LogNova - Centralized Log Management Dashboard
 
+<p align="center">
+  <img src="Untitled design.jpg" alt="LogNova Architecture" style="width:80%;max-width:800px;margin:0 auto;">
+</p>
+
 <div align="center">
   <img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen" />
   <img src="https://img.shields.io/badge/react-19.2.0-blue" />
@@ -373,3 +377,15 @@ MIT License - see LICENSE file for details
 For issues and questions:
 - GitHub Issues: https://github.com/s-asker/lognova/issues
 - Email: sherifasker2@gmail.com
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="Screenshot-from-2025-11-30-12-48-43.jpg" alt="LogNova Dashboard" style="width:90%;max-width:900px;margin:20px auto;">
+</p>
+
+<p align="center">
+  <img src="Screenshot-from-2025-11-30-12-49-28.jpg" alt="LogNova System Services" style="width:90%;max-width:900px;margin:20px auto;">
+</p>
