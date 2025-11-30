@@ -1,28 +1,28 @@
+import express from 'express';
+import cors from 'cors';
+import Docker from 'dockerode';
+import { spawn, exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 /**
  * LogNova Backend Server
  * 
  * Instructions to run:
  * 1. Ensure Node.js is installed (v18+).
- * 2. Create a package.json in this directory with dependencies:
- *    npm init -y
- *    npm install express cors dockerode
- * 3. Run: node server.js
- * 
- * Note: Requires permissions to access Docker socket and read Log files.
- * Typically requires adding your user to 'docker' group and 'adm' group for logs.
+ * 2. Go to backend directory: cd backend
+ * 3. Create package.json if missing: npm init -y
+ * 4. Install dependencies: npm install express cors dockerode
+ * 5. Ensure "type": "module" is in package.json (or inherit from root)
+ * 6. Run: node server.js
  */
-
-const express = require('express');
-const cors = require('cors');
-const Docker = require('dockerode');
-const { spawn, exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const port = 3001;
 
 // Initialize Docker Client (assumes /var/run/docker.sock)
+// Note: Ensure the user running this process has permission to access the socket.
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
 app.use(cors());
@@ -82,12 +82,22 @@ const applyFilters = (logs, query, level, start, end) => {
 
 // 1. Stats
 app.get('/api/stats', async (req, res) => {
-    // In a real app, this would aggregate real data. Returning mock structure for dashboard for now.
+    // Generate dummy chart data for the dashboard since we don't have a persistent time-series DB yet.
+    // In a real production scenario, you would aggregate this from your logs database (e.g., Elasticsearch, Loki).
+    const now = new Date();
+    const logsOverTime = Array.from({ length: 12 }).map((_, i) => {
+        const d = new Date(now.getTime() - (11 - i) * 5 * 60000); // Past hour, 5 min intervals
+        return {
+            time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            count: Math.floor(Math.random() * 300) + 50 // Random value between 50 and 350
+        };
+    });
+
     res.json({
-        totalLogs: 1000,
-        errorCount: 5,
-        warnCount: 12,
-        logsOverTime: []
+        totalLogs: 12540 + Math.floor(Math.random() * 100),
+        errorCount: 42,
+        warnCount: 156,
+        logsOverTime: logsOverTime
     });
 });
 
@@ -130,41 +140,37 @@ app.get('/api/docker/logs', async (req, res) => {
             follow: false,
             stdout: true,
             stderr: true,
-            tail: 200 // Default fetch last 200, but if 'since' is provided, we might get more
+            tail: 200 // Default fetch last 200
         };
 
         if (start) {
             opts.since = Math.floor(new Date(start).getTime() / 1000);
-            delete opts.tail; // If asking for time range, don't limit by lines
+            delete opts.tail; 
         }
         if (end) {
             opts.until = Math.floor(new Date(end).getTime() / 1000);
         }
 
         const logsBuffer = await container.logs(opts);
-
-        // Clean docker header bytes (8 bytes header per frame)
-        // This is a naive split; proper parsing requires reading the 8-byte header to know length/type.
-        // For simple usage, converting to string and splitting by newline often works enough for text logs.
         const rawLogs = logsBuffer.toString('utf8');
         
-        // Basic cleanup of non-printable chars from headers
         let logs = rawLogs.split('\n').map((line, i) => {
-             // Remove Docker header garbage (approximate) if present
-            const cleanLine = line.replace(/[^\x20-\x7E]/g, '').trim();
+            // Clean Docker header bytes (first 8 bytes of each frame)
+            // This regex removes non-printable characters from the start, a rough approximation for removing the header.
+            const cleanLine = line.replace(/[\x00-\x1F\x7F]+/g, ' ').trim();
             if (!cleanLine) return null;
             
             return {
                 id: `docker-${i}-${Date.now()}`,
-                timestamp: new Date().toISOString(), // Docker API stream doesn't inherently include timestamp unless tty=false and 'timestamps: true' is sent.
-                level: 'INFO', // Docker doesn't separate levels strictly in API, only stdout(1)/stderr(2) streams.
+                timestamp: new Date().toISOString(),
+                level: 'INFO', 
                 message: cleanLine,
                 source: containerName
             };
         }).filter(Boolean);
 
         // Apply filters in memory (Query and Level)
-        logs = applyFilters(logs, q, level, null, null); // Start/End handled by Docker API
+        logs = applyFilters(logs, q, level, null, null); 
 
         res.json(logs);
 
@@ -179,10 +185,11 @@ app.get('/api/system/services', (req, res) => {
     // List units
     exec('systemctl list-units --type=service --output=json', (err, stdout, stderr) => {
         if (err) {
-            // Fallback for systems without JSON output support
+            // Fallback for systems without JSON output support or permissions issues
+            console.error("Systemctl error:", err);
             return res.json([
-                { id: '1', name: 'nginx.service', status: 'active', description: 'Nginx Web Server' },
-                { id: '2', name: 'ssh.service', status: 'active', description: 'SSH Daemon' }
+                { id: '1', name: 'nginx.service', status: 'active', description: 'Nginx Web Server (Fallback Mock)' },
+                { id: '2', name: 'ssh.service', status: 'active', description: 'SSH Daemon (Fallback Mock)' }
             ]);
         }
         try {
@@ -218,8 +225,7 @@ app.get('/api/system/logs', (req, res) => {
     if (start) args.push('--since', start);
     if (end) args.push('--until', end);
     
-    // Priority mapping: 
-    // ERROR=3 (err), WARN=4 (warning), INFO=6 (info), DEBUG=7 (debug)
+    // Priority mapping
     if (level) {
         if (level === 'ERROR') args.push('-p', '3');
         else if (level === 'WARN') args.push('-p', '4');
@@ -256,9 +262,17 @@ app.get('/api/files/logs', (req, res) => {
     const { q, level, start, end } = req.query;
     const logPath = '/var/log/nginx/access.log';
     
-    // Construct command: tail -> grep (if basic)
-    // For advanced filtering, we'll read and filter in JS.
-    // Reading 1000 lines max to prevent memory issues in this simple implementation
+    // Ensure file exists
+    if (!fs.existsSync(logPath)) {
+         return res.json([{ 
+             id: 'error', 
+             timestamp: new Date().toISOString(), 
+             level: 'ERROR', 
+             message: `Log file not found at ${logPath}`, 
+             source: 'System' 
+         }]);
+    }
+
     const command = `tail -n 1000 ${logPath}`;
 
     exec(command, (err, stdout, stderr) => {
@@ -268,7 +282,7 @@ app.get('/api/files/logs', (req, res) => {
             if (!line) return null;
             return {
                 id: `file-${i}`,
-                timestamp: new Date().toISOString(), // Nginx logs have timestamps inside the text, requires regex parsing to extract. Using current time as fallback for this demo unless we implement full Nginx parsing.
+                timestamp: new Date().toISOString(), 
                 level: line.includes('[error]') ? 'ERROR' : 'INFO',
                 message: line,
                 source: 'nginx-access'

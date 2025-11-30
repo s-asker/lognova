@@ -12,7 +12,14 @@
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",
     "recharts": "^3.5.1",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "child_process": "^1.0.2",
+    "path": "^0.12.7",
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "url": "^0.11.4",
+    "fs": "^0.0.1-security",
+    "dockerode": "^4.0.9"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
