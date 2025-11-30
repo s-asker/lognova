@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { authenticateToken, requireAdmin, AuthController } from './auth.js';
 
 dotenv.config();
 
@@ -16,9 +17,10 @@ dotenv.config();
  * 1. Ensure Node.js is installed (v18+).
  * 2. Go to backend directory: cd backend
  * 3. Create package.json if missing: npm init -y
- * 4. Install dependencies: npm install express cors dockerode dotenv
+ * 4. Install dependencies: npm install express cors dockerode dotenv jsonwebtoken bcryptjs
  * 5. Ensure "type": "module" is in package.json (or inherit from root)
- * 6. Run: node server.js
+ * 6. Create .env file with JWT_SECRET=your-secret-key
+ * 7. Run: node server.js
  */
 
 const app = express();
@@ -81,10 +83,21 @@ const applyFilters = (logs, query, level, start, end) => {
     return filtered;
 };
 
-// --- API Endpoints ---
+// --- Authentication Routes (Public) ---
+
+app.post('/api/auth/login', AuthController.login);
+app.post('/api/auth/change-password', authenticateToken, AuthController.changePassword);
+
+// --- User Management Routes (Admin Only) ---
+
+app.get('/api/users', authenticateToken, requireAdmin, AuthController.listUsers);
+app.post('/api/users', authenticateToken, requireAdmin, AuthController.createUser);
+app.delete('/api/users/:username', authenticateToken, requireAdmin, AuthController.deleteUser);
+
+// --- Protected API Endpoints ---
 
 // 1. Stats
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', authenticateToken, async (req, res) => {
     try {
         // Parallelize the data fetching for better performance
         const [
@@ -155,19 +168,27 @@ app.get('/api/stats', async (req, res) => {
     } catch (error) {
         console.error('Stats error:', error);
         // Return fallback stats if something fails (e.g. Docker not running)
+        const now = new Date();
+        const logsOverTime = Array.from({ length: 12 }).map((_, i) => {
+            const d = new Date(now.getTime() - (11 - i) * 5 * 60000);
+            return {
+                time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                count: Math.floor(Math.random() * 50) + 10
+            };
+        });
         res.json({
             logDiskUsage: 'Unknown',
             errorCount: 0,
             warnCount: 0,
             activeContainers: 0,
             activeServices: 0,
-            logsOverTime: logsOverTime
+            logsOverTime
         });
     }
 });
 
 // 2. Docker Containers
-app.get('/api/docker/containers', async (req, res) => {
+app.get('/api/docker/containers', authenticateToken, async (req, res) => {
     try {
         const containers = await docker.listContainers({ all: true });
         const mapped = containers.map(c => ({
@@ -185,7 +206,7 @@ app.get('/api/docker/containers', async (req, res) => {
 });
 
 // 3. Docker Logs
-app.get('/api/docker/logs', async (req, res) => {
+app.get('/api/docker/logs', authenticateToken, async (req, res) => {
     const containerName = req.query.id;
     const { q, level, start, end } = req.query;
 
@@ -246,7 +267,7 @@ app.get('/api/docker/logs', async (req, res) => {
 });
 
 // 4. Systemd Services
-app.get('/api/system/services', (req, res) => {
+app.get('/api/system/services', authenticateToken, (req, res) => {
     // List units
     exec('systemctl list-units --type=service --output=json', (err, stdout, stderr) => {
         if (err) {
@@ -273,7 +294,7 @@ app.get('/api/system/services', (req, res) => {
 });
 
 // 5. Systemd Logs (Journalctl)
-app.get('/api/system/logs', (req, res) => {
+app.get('/api/system/logs', authenticateToken, (req, res) => {
     const unit = req.query.id; 
     const { q, level, start, end } = req.query;
 
@@ -323,7 +344,7 @@ app.get('/api/system/logs', (req, res) => {
 });
 
 // 6. Nginx File Logs
-app.get('/api/files/logs', (req, res) => {
+app.get('/api/files/logs', authenticateToken, (req, res) => {
     const { q, level, start, end } = req.query;
     const logPath = '/var/log/nginx/access.log';
     
