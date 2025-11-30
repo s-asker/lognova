@@ -1,8 +1,8 @@
 import { ApiResponse, DockerContainer, LogEntry, LogLevel, LogSourceType, LogStats, SystemService } from '../types';
 
 // Configuration
-const API_BASE_URL = 'http://localhost:3001/api';
-const USE_MOCK_DATA = true; // Set to FALSE to connect to the actual backend provided in `backend/server.js`
+const API_BASE_URL = 'http://102.218.215.254:3001/api';
+const USE_MOCK_DATA = false; // Set to FALSE to connect to the actual backend provided in `backend/server.js`
 
 // Mock Data Generators for UI Demo
 const generateMockLogs = (count: number, source: string): LogEntry[] => {
