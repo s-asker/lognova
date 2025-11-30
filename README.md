@@ -14,16 +14,7 @@ LogNova is a modern, self-hosted log aggregation and monitoring dashboard for Ub
 - **Systemd Services** - System service logs via journalctl
 - **File-based Logs** - Direct file reading (Nginx, Apache, custom logs)
 
-### Features
-
-- ✅ **JWT Authentication** - Secure user management with role-based access
-- ✅ **Multi-source Aggregation** - Docker, systemd, and file logs in one place
-- ✅ **Advanced Filtering** - Search, log level, time range filters
-- ✅ **Real-time Stats** - Dashboard with metrics and visualizations
-- ✅ **User Management** - Admin can create/delete users from dashboard
-- ✅ **Modern UI** - Responsive design with dark theme
-- ⏳ **AI Log Analysis** - Perplexity/Gemini integration (coming soon)
-
+  
 ---
 
 ## Prerequisites
