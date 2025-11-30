@@ -29,7 +29,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+      background: 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%)'
     }}>
       <div className="w-full max-w-md">
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
