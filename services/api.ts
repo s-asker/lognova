@@ -22,8 +22,10 @@ const mockStats: LogStats = {
   logsOverTime: [
     { time: '10:00', count: 120 }, { time: '10:05', count: 150 },
     { time: '10:10', count: 180 }, { time: '10:15', count: 140 },
-    { time: '10:20', count: 200 }, { time: '10:25', count: 400 }, // Spike
-    { time: '10:30', count: 160 },
+    { time: '10:20', count: 200 }, { time: '10:25', count: 400 },
+    { time: '10:30', count: 160 }, { time: '10:35', count: 220 },
+    { time: '10:40', count: 190 }, { time: '10:45', count: 300 },
+    { time: '10:50', count: 250 }, { time: '10:55', count: 180 },
   ]
 };
 
@@ -44,7 +46,10 @@ const mockServices: SystemService[] = [
 // Service Implementation
 export const ApiService = {
   async getStats(): Promise<LogStats> {
-    if (USE_MOCK_DATA) return mockStats;
+    if (USE_MOCK_DATA) {
+        // Return a copy to avoid mutation issues
+        return JSON.parse(JSON.stringify(mockStats)); 
+    }
     const res = await fetch(`${API_BASE_URL}/stats`);
     const data = await res.json();
     return data;
@@ -62,20 +67,44 @@ export const ApiService = {
     return await res.json();
   },
 
-  async getLogs(type: LogSourceType, id?: string, query?: string): Promise<LogEntry[]> {
+  async getLogs(
+      type: LogSourceType, 
+      id?: string, 
+      query?: string, 
+      level?: LogLevel, 
+      startDate?: string, 
+      endDate?: string
+  ): Promise<LogEntry[]> {
     if (USE_MOCK_DATA) {
-      // Simulate network delay
-      await new Promise(r => setTimeout(r, 400));
-      let logs = generateMockLogs(50, id || (type === LogSourceType.FILE ? 'nginx' : 'system'));
+      await new Promise(r => setTimeout(r, 300)); // Latency simulation
+      
+      let logs = generateMockLogs(100, id || (type === LogSourceType.FILE ? 'nginx' : 'system'));
+      
       if (query) {
         logs = logs.filter(l => l.message.toLowerCase().includes(query.toLowerCase()));
       }
+      
+      if (level) {
+        logs = logs.filter(l => l.level === level);
+      }
+
+      if (startDate) {
+          const start = new Date(startDate).getTime();
+          logs = logs.filter(l => new Date(l.timestamp).getTime() >= start);
+      }
+
+      if (endDate) {
+          const end = new Date(endDate).getTime();
+          logs = logs.filter(l => new Date(l.timestamp).getTime() <= end);
+      }
+
       return logs;
     }
 
     const params = new URLSearchParams();
     if (id) params.append('id', id);
     if (query) params.append('q', query);
+    // Real implementation would append level, startDate, endDate to query params here
 
     let endpoint = '';
     switch (type) {

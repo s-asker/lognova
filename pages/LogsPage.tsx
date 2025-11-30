@@ -13,6 +13,7 @@ export const LogsPage: React.FC<LogsPageProps> = ({ type, selectedId: initialId 
   const [selectedId, setSelectedId] = useState<string | null>(initialId);
   const [dockerContainers, setDockerContainers] = useState<DockerContainer[]>([]);
   const [systemServices, setSystemServices] = useState<SystemService[]>([]);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (type === LogSourceType.DOCKER) {
@@ -42,15 +43,15 @@ export const LogsPage: React.FC<LogsPageProps> = ({ type, selectedId: initialId 
 
   return (
     <div className="h-full flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between ${isFullScreen ? 'hidden' : ''}`}>
         <h1 className="text-2xl font-bold text-white">
           {type === LogSourceType.DOCKER ? 'Docker Containers' : 'System Services'}
         </h1>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-full min-h-0">
-        {/* List Side */}
-        <div className="col-span-4 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+      <div className="grid grid-cols-12 gap-6 h-full min-h-0 transition-all duration-300">
+        {/* List Side - Hidden in Full Screen */}
+        <div className={`${isFullScreen ? 'hidden' : 'col-span-4'} bg-slate-800 border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all`}>
           <div className="p-4 border-b border-slate-700 bg-slate-850">
             <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Available Sources</h3>
           </div>
@@ -95,10 +96,16 @@ export const LogsPage: React.FC<LogsPageProps> = ({ type, selectedId: initialId 
           </div>
         </div>
 
-        {/* Viewer Side */}
-        <div className="col-span-8 flex flex-col min-h-0">
+        {/* Viewer Side - Expands in Full Screen */}
+        <div className={`${isFullScreen ? 'col-span-12' : 'col-span-8'} flex flex-col min-h-0 transition-all`}>
            {selectedId ? (
-               <LogViewer type={type} sourceId={selectedId} key={selectedId} />
+               <LogViewer 
+                  type={type} 
+                  sourceId={selectedId} 
+                  key={selectedId} 
+                  isFullScreen={isFullScreen}
+                  onToggleFullScreen={() => setIsFullScreen(!isFullScreen)}
+               />
            ) : (
                <div className="h-full border border-dashed border-slate-700 rounded-lg flex items-center justify-center text-slate-500 bg-slate-800/50">
                    <p>Select a {type === LogSourceType.DOCKER ? 'container' : 'service'} to view logs</p>

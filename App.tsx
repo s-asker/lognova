@@ -3,15 +3,22 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { LogsPage } from './pages/LogsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LoginPage } from './pages/LoginPage';
 import { LogSourceType } from './types';
 
-// Simple router state since we can't use React Router DOM in this environment easily
-// and HashRouter is permitted but a custom state is often cleaner for single-file demos.
-// However, strictly following instructions to use HashRouter if needed, but here simple state works best.
-
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'docker' | 'system' | 'nginx' | 'settings'>('dashboard');
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentView('dashboard');
+  };
 
   const navigateTo = (view: 'dashboard' | 'docker' | 'system' | 'nginx' | 'settings', sourceId: string | null = null) => {
     setCurrentView(view);
@@ -35,8 +42,12 @@ const App: React.FC = () => {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
-    <Layout currentView={currentView} onNavigate={navigateTo}>
+    <Layout currentView={currentView} onNavigate={navigateTo} onLogout={handleLogout}>
       {renderContent()}
     </Layout>
   );

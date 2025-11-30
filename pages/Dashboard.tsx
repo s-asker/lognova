@@ -16,7 +16,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     ApiService.getStats().then(setStats);
   }, []);
 
-  if (!stats) return <div className="text-slate-400">Loading dashboard...</div>;
+  if (!stats) return <div className="text-slate-400 p-8">Loading dashboard...</div>;
 
   return (
     <div className="space-y-6">
@@ -53,21 +53,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6 flex flex-col">
           <h3 className="text-lg font-medium text-white mb-6">Log Volume</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.logsOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="time" stroke="#94a3b8" tick={{fontSize: 12}} />
-                <YAxis stroke="#94a3b8" tick={{fontSize: 12}} />
-                <Tooltip 
-                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
-                    cursor={{fill: '#334155', opacity: 0.4}}
-                />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Explicit height wrapper for Recharts */}
+          <div className="h-[300px] w-full">
+            {stats.logsOverTime && stats.logsOverTime.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.logsOverTime} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                    <XAxis 
+                        dataKey="time" 
+                        stroke="#94a3b8" 
+                        tick={{fontSize: 12, fill: '#94a3b8'}} 
+                        tickLine={false}
+                        axisLine={false}
+                    />
+                    <YAxis 
+                        stroke="#94a3b8" 
+                        tick={{fontSize: 12, fill: '#94a3b8'}} 
+                        tickLine={false}
+                        axisLine={false}
+                    />
+                    <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', borderRadius: '0.375rem' }}
+                        itemStyle={{ color: '#3b82f6' }}
+                        cursor={{fill: '#334155', opacity: 0.3}}
+                    />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} />
+                </BarChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="h-full flex items-center justify-center text-slate-500">
+                    No data available
+                </div>
+            )}
           </div>
         </div>
 
