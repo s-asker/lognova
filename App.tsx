@@ -1,22 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { LogsPage } from './pages/LogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { LogSourceType } from './types';
+import { AuthService } from './services/api';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ username: string; role: string } | null>(null);
   const [currentView, setCurrentView] = useState<'dashboard' | 'docker' | 'system' | 'nginx' | 'settings'>('dashboard');
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
+  useEffect(() => {
+    // Check if already authenticated on mount
+    if (AuthService.isAuthenticated()) {
+      // Token exists, assume user is authenticated
+      // In production, you might want to decode JWT to get user info
+      // or make a "whoami" API call to verify the token
+      setUser({ username: 'authenticated', role: 'user' }); // Placeholder
+    }
+  }, []);
+
+  const handleLogin = (userData: { username: string; role: string }) => {
+    setUser(userData);
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
+    AuthService.logout();
+    setUser(null);
     setCurrentView('dashboard');
   };
 
@@ -36,13 +48,13 @@ const App: React.FC = () => {
       case 'nginx':
         return <LogsPage type={LogSourceType.FILE} selectedId={'nginx'} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage user={user} />;
       default:
         return <Dashboard onNavigate={navigateTo} />;
     }
   };
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
